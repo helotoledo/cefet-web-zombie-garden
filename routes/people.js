@@ -26,11 +26,16 @@ router.get('/', async (req, res, next) => {
     //   - por exemplo, assim que uma pessoa é excluída, uma mensagem de
     //     sucesso pode ser mostrada
     // - error: idem para mensagem de erro
-    res.render('list-people', {
+    const result =  {
       people,
       success: req.flash('success'),
       error: req.flash('error')
-    })
+    };
+
+    res.format({
+      html: () => res.render('list-people', result),
+      json: () => res.json(result)
+    });
 
   } catch (error) {
     console.error(error)
@@ -89,14 +94,65 @@ router.get('/new/', (req, res) => {
 //      - Em caso de sucesso do INSERT, colocar uma mensagem feliz
 //      - Em caso de erro do INSERT, colocar mensagem vermelhinha
 
+router.post('/', async (req, res) => {
+  const body = req.body;
+
+  if (body == null || !body.name) {
+    req.flash('error', 'Nome é obrigatório!');
+    res.redirect('back');
+    return;
+  }
+
+  try {
+    const [result] = await db.execute(`INSERT INTO person (id, name, alive) VALUES (NULL, ?, TRUE);`, [body.name]);
+
+    if (result.affectedRows !== 1) {
+      req.flash('error', 'Não foi possível adicionar pessoa.');
+    } else {
+      req.flash('success', 'Adicicionado com sucesso.');
+    }
+
+    res.redirect('/people');
+
+  } catch (error) {
+    req.flash('error', `Erro: ${error}`);
+    res.redirect('/people');
+  }
+});
+
 
 /* DELETE uma pessoa */
 // Exercício 2: IMPLEMENTAR AQUI
 // Dentro da callback de tratamento da rota:
 //   1. Fazer a query de DELETE no banco
 //   2. Redirecionar para a rota de listagem de pessoas
-//      - Em caso de sucesso do INSERT, colocar uma mensagem feliz
-//      - Em caso de erro do INSERT, colocar mensagem vermelhinha
+//      - Em caso de sucesso do DELETE, colocar uma mensagem feliz
+//      - Em caso de erro do DELETE, colocar mensagem vermelhinha
 
+router.delete('/:id', async (req, res) => {
+  const id = req.params.id;
+
+  if (id == null) {
+    req.flash('error', 'Id é obrigatório!');
+    res.redirect('back');
+    return;
+  }
+
+  try {
+    const [result] = await db.execute(`DELETE FROM person WHERE id=?`, [id]);
+
+    if (result.affectedRows !== 1) {
+      req.flash('error', 'Não existe esse Id para ser deletado.');
+    } else {
+      req.flash('success', 'Deletado com sucesso.');
+    }
+
+    res.redirect('back');
+
+  } catch (error) {
+    req.flash('error', `Erro: ${error}`);
+    res.redirect('back');
+  }
+});
 
 export default router
